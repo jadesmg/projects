@@ -1,0 +1,197 @@
+import random
+
+import requests
+# Below - for printing rules slowly - c+p from google search
+import sys
+import time
+
+# making the txt file and/or clearing it when starting a brand-new game.
+open('toptrumps.txt', 'w').close()
+
+print('Welcome to pokemon top trumps!')
+rules ='''     [HOW TO PLAY POKEMON TOP TRUMPS]
+#1. Select your Pokemon
+#2. Select your statistic
+#3. A random pokemon and statistic will be selected for your opponent (the computer)
+#4. The player with the highest statistic wins
+#5. You can play multiple games \n'''
+
+# BELOW prints the rules slowly - the speed is a bit fast for presentation purposes
+# could take unnecessary time otherwise
+for word in rules:
+    sys.stdout.write(word)
+    sys.stdout.flush()
+    time.sleep(0.025)
+
+start = input("\nPress 'Enter' to start the game...")
+
+# choosing between random and id selection for user pokemon
+def choosing_pokemon():
+    pokemon_number = input('Do you want a random pokemon?y/n ')
+    if pokemon_number.lower() == 'y':
+        selection()
+    elif pokemon_number.lower() == 'n':
+        pick_id = user_choice()
+        print('Your pokemon is {}'.format(pokemon['name']))
+    else:
+        print('Please type only y or n. ')
+        choosing_pokemon()
+
+# this is seperate from which_random(below) because otherwise the loop selects new pokemon options each time
+# which random is to choose between two randomly generated pokemon
+def selection():
+    global pokemon_one
+    global pokemon_two
+    pokemon_one = random_choice()
+    pokemon_two = random_choice()
+    which_random()
+
+def which_random():
+    global one_or_two
+    one_or_two = input(f"1.{pokemon_one['name']} or 2. {pokemon_two['name']} \nCHOOSE YOUR POKEMON! 1 or 2. ")
+    if one_or_two == str(1):
+        print(f"{pokemon_one['name']} is your pokemon")
+    elif one_or_two == str(2):
+        print(f"{pokemon_two['name']} is your pokemon")
+    else:
+        print('please type 1 or 2.')
+        which_random()
+
+# random choice - used for user randomising and computer randomising
+# pokemon global as referenced in fuctions where its not defined (or was previously) and this helped.
+# scared to remove global feature as it fixed an issue at one point.
+def random_choice():
+    global choice
+    choice = random.randint(1, 1010)
+    url = 'https://pokeapi.co/api/v2/pokemon/{}'.format(choice)
+    response = requests.get(url)
+    global pokemon
+    pokemon = response.json()
+    return pokemon
+
+# user generating own pokemon by selecting the id number
+# had to learn how to check if user input is a number - .isdigit() was the answer.
+# otherwise letter string inputs errored instead of looping to the start of the function again
+def user_choice():
+    choice = input('What is the ID number of the pokemon you want? (1 - 1010) ')
+    if choice.isdigit():
+        if int(choice) in range(1, 1010):
+            url = 'https://pokeapi.co/api/v2/pokemon/{}'.format(choice)
+            response = requests.get(url)
+            global pokemon
+            pokemon = response.json()
+            return pokemon
+        else:
+            print('Please enter number between 1-1010 ')
+            user_choice()
+    else:
+        print('Please enter number between 1-1010 ')
+        user_choice()
+
+# if restart = yes - loops back to the start of 'main'
+# if restart = no - prints the txt file that's storing the round results
+def restart():
+    redo = input('Do you want to play again? y/n ')
+    if redo.lower() == 'y':
+        main()
+    elif redo.lower() == 'n':
+        with open('toptrumps.txt', 'r') as text_file:
+            contents = text_file.read()
+        print('\nYour game results are: \n{}'.format(contents))
+        exit()
+    else:
+        print("please enter 'y' or 'n'")
+        restart()
+
+
+# serial_code and rounds.
+# seperating them just worked better - trial and error though so I think they can be joined
+# but if it ain't broke don't fix it
+count = 0
+def serial_code():
+    global count
+    count += 1
+    return count
+
+def rounds():
+    round = ('\nROUND ' + str(serial_code()))
+    print(round)
+    with open('toptrumps.txt', 'a') as text_file:
+        text_file.write('{}\n'.format(round))
+
+
+def main():
+
+    rounds()
+
+    choosing_pokemon()
+
+# i tried making the dictionary seperate and only one that both the user and computer could refer to for results
+# I struggled with this and kept causing errors so having 2 dictionaries sitting in main() works well enough
+# If this can be fixed to be only one that would be great.
+# maybe how jacqui did retrn and then had the dictionary under that
+# - but the dictionary could be a serparate fuction that's refered to in that code
+    # that maybe didn't make sense - sorry
+# Aint broke - I'm scared to try and fix in case I ruin it.
+    data = dict({
+        'id': pokemon['id'],
+        'height': pokemon['height'],
+        'weight': pokemon['weight'],
+        'attack': pokemon['stats'][1]['base_stat'],
+        'defense': pokemon['stats'][2]['base_stat'],
+        'speed': pokemon['stats'][5]['base_stat'],
+    })
+
+# generates and prints the stats for user using dictionary above
+    user_pokemon_stats = data.items()
+    print('Your stats are:')
+    for items in user_pokemon_stats:
+        print(items)
+
+    computers = random_choice()
+    print('The computers pokemon is {}.'.format(computers['name']))
+
+# the 2nd dictionary for computer as i keep encountering errors otherwise
+    comp_data = dict({
+        'id': computers['id'],
+        'height': computers['height'],
+        'weight': computers['weight'],
+        'attack': computers['stats'][1]['base_stat'],
+        'defense': computers['stats'][2]['base_stat'],
+        'speed': computers['stats'][5]['base_stat'],
+    })
+
+# just a list of the stat options - cleaner than any dict.keys or such
+    stat_options = ('id', 'weight', 'height', 'attack', 'defense', 'speed')
+
+# user chooses stat to battle
+    choose = input('What stat do you choose to battle {}? '.format(stat_options))
+    while choose not in stat_options:
+        print(f"please enter stat name: {stat_options}")
+        choose = input('What stat do you choose to battle? ')
+
+# generates each players stat result
+    result = data.get(choose)
+    comp_result = comp_data.get(choose)
+
+# prints each players stat result
+    print('Your stat is {}'.format(result))
+    print('The computers stat is {}'.format(comp_result))
+
+# prints winner etc.
+    if int(result > comp_result):
+        outcome = str('You win!')
+    elif int(result == comp_result):
+        outcome = str('Draw!')
+    else:
+        outcome = str('You Lose!')
+
+    print(outcome)
+
+# adds round result to txt file
+    with open('toptrumps.txt', 'a') as text_file:
+        text_file.write('{}\n'.format(outcome))
+
+    restart()
+
+main()
