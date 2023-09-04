@@ -1,0 +1,170 @@
+//Get references
+const searchInput = document.getElementById("searchInput");
+const searchButton = document.getElementById("searchButton");
+const mealContainer = document.getElementById("mealContainer");
+const planList = document.getElementById("planList");
+const generateShoppingListButton = document.getElementById(
+  "generateShoppingList"
+);
+const shoppingListItems = document.getElementById("shoppingListItems");
+
+// Event listener for search button
+searchButton.addEventListener("click", function () {
+  event.preventDefault(); // Prevent default submission
+  const searchTerm = searchInput.value.trim(); // Get the value from search input
+  if (searchTerm != "") {
+    // Check if the searchTerm is not empty
+    searchMeals(searchTerm); // Call the searchMeals function
+    searchInput.value = ""; // Clear the searchInput after search
+  }
+});
+
+// Function to search for meals using the MealDB API
+function searchMeals(searchTerm) {
+  mealContainer.innerHTML = ""; // Clear the existing meal cards in the container
+
+  return fetch(
+    // API call to fetch meals based on the search term
+    `https://www.themealdb.com/api/json/v1/1/search.php?s=${searchTerm}`
+  )
+    .then((response) => response.json()) // Convert the response data to json
+    .then((res) => {
+      if (res.meals) {
+        // Check if the API response contains meal data
+        res.meals.forEach((meal) => {
+          // Loop through each meal in the data
+          const mealCard = createMealCard(meal); //create a mealcard
+          mealContainer.appendChild(mealCard);
+        }); // Append the mealcard to the meal container
+      } else {
+        mealContainer.innerHTML = "<p>No meals found.</p>"; // Display a message if no meals are found
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching data:", error);
+      error; // message if the API call fails
+    });
+}
+
+//Event listener for Random Meal generation
+randomButton.addEventListener("click", function () {
+  mealContainer.innerHTML = ""; // Clear the existing meal cards in the container
+
+  event.preventDefault(); //Prevent default submission
+  fetch("https://www.themealdb.com/api/json/v1/1/random.php")
+    .then((res) => res.json()) //Convert the response to json
+    .then((res) => {
+      const randomMeal = res.meals[0]; // Get the first meal
+      const randomMealCard = createMealCard(randomMeal); // Create a meal card
+      mealContainer.appendChild(randomMealCard);
+    }) // Append the random mealcard
+    .catch((error) => {
+      console.error("Error fetching data:", error); // Display error if no data
+    });
+});
+
+// Function to create a meal card
+function createMealCard(meal) {
+  const mealCard = document.createElement("div"); // Create a new div element to hold the meal card
+
+  // Inner HTML of the meal card
+  mealCard.innerHTML = `
+        <img src="${meal.strMealThumb}" height="400" width="400"> <!--meal image-->
+        <h2>${meal.strMeal}</h2> <!--mealname as heading-->
+        <details id=recipeDetails>
+          <summary id=recipeSummary>Recipe</summary> <!--meal instructions-->
+        <p id=printRecipe>${meal.strInstructions}</p>
+        </details>
+        <br>
+        <button id=addWeekPlan>Add to Weekly Plan</button>`;
+
+  // Event listener to the Meal card
+
+  mealCard.addEventListener("click", (event) => {
+    addToPlan(meal);
+  });
+
+  return mealCard;
+}
+
+// Object to store the selected meal
+const weeklyPlan = {};
+
+// Function to add a meal to the plan
+function addToPlan(meal) {
+  weeklyPlan[meal.idMeal] = meal; // Add selected meal to weeklyPlan
+  const planItem = document.createElement("li"); // Create a new list item in the plan
+
+  // Inner HTML of plan item
+  planItem.innerHTML = `
+    <span>${meal.strMeal}</span>
+    <button class="delete-button" data-meal-id="${meal.idMeal}">Delete</button>
+  `;
+
+  weeklyMealPlanList.appendChild(planItem); // Append the planitem to weeklyMealPlanList
+
+  // Event listener for the delete button
+  const deleteButton = planItem.querySelector(".delete-button");
+  deleteButton.addEventListener("click", () => deleteFromPlan(meal.idMeal)); // Call deleteFromPlan function
+}
+
+// Function to delete a meal from the plan
+function deleteFromPlan(mealId) {
+  delete weeklyPlan[mealId]; // Delete a meal using meal ID
+  updatePlanList(); //Update the plan list
+}
+
+// Function to update the displayed meal plan
+function updatePlanList() {
+  weeklyMealPlanList.innerHTML = ""; // Clear the existing plan list
+  for (const mealId in weeklyPlan) {
+    // Loop through each meal in weeklyPlan and update
+    const meal = weeklyPlan[mealId];
+    const planItem = document.createElement("li"); //Create new item to display the meal
+    planItem.innerHTML = `
+      ${meal.strMeal}
+      <button class="delete-button" data-meal-id="${meal.idMeal}">Delete</button>
+    `;
+    weeklyMealPlanList.appendChild(planItem); // Append the planitem to weeklyMealPlanList
+
+    // Event listener for the delete button
+    const deleteButton = planItem.querySelector(".delete-button");
+    deleteButton.addEventListener("click", () => deleteFromPlan(meal.idMeal));
+  }
+}
+
+// Add event listener for the "Generate Shopping List" button
+generateShoppingListButton.addEventListener("click", generateShoppingList);
+
+// Function to generate the shopping list
+async function generateShoppingList() {
+  shoppingListItems.innerHTML = ""; // Clear the existing shopping list
+  const shoppingList = {}; // Object to store the shopping list
+
+  for (const mealId in weeklyPlan) {
+    // Loop through each meal in the weekly plan
+    const meal = weeklyPlan[mealId];
+    for (let i = 1; i <= 20; i++) {
+      // Loop through each ingredient in the meal
+      const ingredient = meal[`strIngredient${i}`];
+      const measure = meal[`strMeasure${i}`];
+      if (ingredient !== "" && measure !== "") {
+        // Check if both ingredient and measure are not empty
+        const ingredientWithMeasure = `${measure} ${ingredient}`;
+        if (!shoppingList[ingredientWithMeasure]) {
+          // If ingredientWithMeasure is not in the shopping list
+          shoppingList[ingredientWithMeasure] = 1; // add it with quantity 1
+        } else {
+          shoppingList[ingredientWithMeasure]++; // increment its quantity
+        }
+      }
+    }
+  }
+
+  for (const ingredient in shoppingList) {
+    // Loop through the shopping list to create shopping list items
+    const shoppingListItem = document.createElement("li"); // Create new list to display shopping items
+    shoppingListItem.innerText = `${shoppingList[ingredient]}x ${ingredient}`; // Text content includes quantity and Ingredient
+    shoppingListItems.appendChild(shoppingListItem); // Append the shopping list item to the shoppingListItems
+  }
+}
